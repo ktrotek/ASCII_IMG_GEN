@@ -7,21 +7,26 @@ import random
 import math
 import tkinter.font as tkFont
 
-# Y2K-styled ASCII characters
-ASCII_CHARS = "@#MWNQBGFHKEPSAOZXafeowgp][}{?>=<+_;:~-,."
-CURSOR = "pirate"  # Try 'spider', 'pirate', or 'trek' on Linux
+ASCII_BASIC = "@#MWNQBGFHKEPSAOZXafeowgp][}{?>=<+_;:~-,."
+ASCII_BOX = "█▉▊▋▌▍▎▏▓▒░▐▕▖▗▘▙▚▛▜▝▞▟■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯"  # Block characters
+ASCII_CCC = "中日人木水火山石田土手口目耳足車金玉貝魚鳥犬花草竹空雨電気上下左右中大小出入本文字" 
+CURSOR = "trek"  # Try 'spider', 'pirate', or 'trek' on Linux
 
 class ASCIGEN:
     def __init__(self, root):
         self.root = root
         self.root.title("ASCIGEN")
+        
         # Use a maximized window (with native title bar)
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.font_job_id = None  # Track scheduled font updates for letter resize 
        
-        
+        # Character spacing control
+        self.char_spacing = 1  # Pixels between characters
+        self.line_spacing = 1   # Pixels between lines
+    
         # Fixed dimensions for the neural preview area
         self.preview_width = 250
         self.preview_height = 250
@@ -54,6 +59,8 @@ class ASCIGEN:
         self.brightness_pulse = tk.BooleanVar(value=False)  # (stub)
         self.noise_ripple = tk.DoubleVar(value=0)           # 0 to 50
         self.highlight_effect = tk.DoubleVar(value=0)       # 0 to 100
+
+        self.ascii_chars = ASCII_BASIC
                 
         self.setup_y2k_style()
         self.setup_menu()
@@ -126,19 +133,21 @@ class ASCIGEN:
         self.setup_effect_controls(right_frame)
 
     def setup_ascii_output(self, parent):
-        self.output_frame = ttk.LabelFrame(parent, text="DIGITAL OUTPUT", padding=10)
+        self.output_frame = ttk.LabelFrame(parent, padding=10)
         self.output_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         self.output_frame.rowconfigure(0, weight=1)
         self.output_frame.columnconfigure(0, weight=1)
         
-    def setup_ascii_output(self, parent):
+    # Configure text widget with exact monospace and spacing
         self.ascii_text = tk.Text(parent,
                                 wrap=tk.NONE,
-                                bg='#000000',
+                                bg=self.bg_color,
                                 fg=self.text_color,
                                 font=('Courier New', 12),
-                                padx=10,  # Horizontal padding
-                                pady=10)  # Vertical padding
+                                padx=20,
+                                pady=20,
+                                spacing1=self.line_spacing,
+                                spacing3=self.line_spacing)
         self.ascii_text.grid(row=0, column=0, sticky="nsew")
 
     def setup_preview(self, parent):
@@ -166,123 +175,134 @@ class ASCIGEN:
         self.show_preview()
 
     def setup_effect_controls(self, parent):
-        effect_frame = ttk.LabelFrame(parent, text="DIGITAL MANIPULATION", padding=10)
-        effect_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-        effect_frame.columnconfigure(0, weight=1)
+        # Create notebook for tabs
+        notebook = ttk.Notebook(parent)
+        notebook.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         
-        row = 0
-        # Text Color Button
-        ttk.Button(effect_frame, text="Text Color", command=self.choose_text_color).grid(row=row, column=0, sticky="ew", pady=5)
-        row += 1
+        # Create tabs
+        tab_a = ttk.Frame(notebook)
+        tab_b = ttk.Frame(notebook)
+        notebook.add(tab_a, text=" Static Effects  ")
+        notebook.add(tab_b, text=" Glitch Effects ")
+        
+        # Configure columns for both tabs
+        for tab in [tab_a, tab_b]:
+            tab.columnconfigure(0, weight=1)
+            tab.columnconfigure(1, weight=3)  # 3:1 ratio for controls column
 
-        ttk.Button(effect_frame, text="Background Color", command=self.choose_background_color).grid(row=row, column=0, sticky="ew", pady=5)
-        row += 1
+        # Tab A - Static Effects
+        row_a = 0
+        
+        # Character Selection
+        ttk.Label(tab_a, text="CHAR SELECT:", font=('OCR A Extended', 9))\
+            .grid(row=row_a, column=0, sticky="w", pady=(10,2), padx=10)
+        self.char_set = ttk.Combobox(tab_a, values=["Basic", "Box", "CCC"], 
+                                font=('OCR A Extended', 9), state="readonly")
+        self.char_set.current(0)
+        self.char_set.grid(row=row_a, column=1, sticky="ew", pady=(10,2), padx=(0,10))
+        self.char_set.bind("<<ComboboxSelected>>", self.update_character_set)
+        row_a += 1
+
+        # Text Color
+        ttk.Label(tab_a, text="TEXT COLOR:", font=('OCR A Extended', 9))\
+            .grid(row=row_a, column=0, sticky="w", pady=2, padx=10)
+        ttk.Button(tab_a, command=self.choose_text_color)\
+            .grid(row=row_a, column=1, sticky="ew", pady=2, padx=(0,10))
+        row_a += 1
+
+        # Background Color
+        ttk.Label(tab_a, text="BACKGROUND COLOR:", font=('OCR A Extended', 9))\
+            .grid(row=row_a, column=0, sticky="w", pady=2, padx=10)
+        ttk.Button(tab_a, command=self.choose_background_color)\
+            .grid(row=row_a, column=1, sticky="ew", pady=2, padx=(0,10))
+        row_a += 1
 
         # Letter Size
-        letter_frame = ttk.Frame(effect_frame)
-        letter_frame.grid(row=row, column=0, sticky="ew", pady=5)
-        ttk.Label(letter_frame, text="LETTER SIZE:").pack(side=tk.LEFT)
-        self.letter_size = ttk.Scale(letter_frame, from_=6, to=24, orient=tk.HORIZONTAL,
+        ttk.Label(tab_a, text="LETTER SIZE:", font=('OCR A Extended', 9))\
+            .grid(row=row_a, column=0, sticky="w", pady=2, padx=10)
+        self.letter_size = ttk.Scale(tab_a, from_=6, to=24, orient=tk.HORIZONTAL,
                                     command=lambda v: self.adjust_font_size())
         self.letter_size.set(12)
-        self.letter_size.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
-        row += 1
-        
-        # Brightness
-        self.brightness_scale = self.create_effect_scale(effect_frame, "BRIGHTNESS", -50, 50, row, start_value=0)
-        row += 1
-        
-        # Contrast
-        self.contrast_scale = self.create_effect_scale(effect_frame, "CONTRAST", -50, 50, row, start_value=0)
-        row += 1
-        
-        # Exposure
-        self.exposure_scale = self.create_effect_scale(effect_frame, "EXPOSURE", -50, 50, row, start_value=0)
-        row += 1
-        
-        # Glitch
-        self.distortion_scale = self.create_effect_scale(effect_frame, "GLITCH", -50, 50, row)
-        row += 1
-        
-        # Static
-        self.noise_scale = self.create_effect_scale(effect_frame, "STATIC", -50, 50, row)
-        row += 1
-        
-        # Black & White Checkbox
-        self.bw_var = tk.BooleanVar(value=False)
-        bw_check = ttk.Checkbutton(effect_frame, text="Black & White", variable=self.bw_var,
-                                command=self.toggle_black_and_white)
-        bw_check.grid(row=row, column=0, sticky="ew", pady=5)
-        row += 1
-        
+        self.letter_size.grid(row=row_a, column=1, sticky="ew", pady=2, padx=(0,10))
+        row_a += 1
 
+        # Effect Scales
+        def add_scale(tab, label, row):
+            ttk.Label(tab, text=f"{label}:", font=('OCR A Extended', 9))\
+                .grid(row=row, column=0, sticky="w", pady=2, padx=10)
+            scale = ttk.Scale(tab, from_=-50, to=50, orient=tk.HORIZONTAL,
+                            command=lambda v, t=label.lower(): self.update_effect(t, float(v)))
+            scale.grid(row=row, column=1, sticky="ew", pady=2, padx=(0,10))
+            return scale
+
+        self.brightness_scale = add_scale(tab_a, "BRIGHTNESS", row_a)
+        row_a += 1
+        self.contrast_scale = add_scale(tab_a, "CONTRAST", row_a)
+        row_a += 1
+        self.exposure_scale = add_scale(tab_a, "EXPOSURE", row_a)
+        row_a += 1
+        self.distortion_scale = add_scale(tab_a, "GLITCH", row_a)
+        row_a += 1
+        self.noise_scale = add_scale(tab_a, "STATIC", row_a)
+        row_a += 1
+
+        # Checkboxes
+        def add_checkbox(tab, text, var, command, row):
+            ttk.Label(tab, text=f"{text}:", font=('OCR A Extended', 9))\
+                .grid(row=row, column=0, sticky="w", pady=2, padx=10)
+            cb = ttk.Checkbutton(tab, 
+                                variable=var,
+                                command=command)  # Add command binding here
+            cb.grid(row=row, column=1, sticky="w", pady=2, padx=(0,10))
+            return cb
         
-        # Invert ASCII Checkbox
-        ttk.Checkbutton(effect_frame, text="Invert ASCII", variable=self.invert_ascii,
-                        command=self.generate_ascii).grid(row=row, column=0, sticky="ew", pady=2)
-        row += 1
+        add_checkbox(tab_a, "Invert ASCII", self.invert_ascii, self.generate_ascii, row_a)
+        row_a += 1
+
+        # Tab B - Glitch Effects (mirroring Tab A structure)
+        row_b = 0
         
-        # Wave Text
-        wave_frame = ttk.Frame(effect_frame)
-        wave_frame.grid(row=row, column=0, sticky="ew", pady=2)
-        ttk.Label(wave_frame, text="Wave Text:").pack(side=tk.LEFT)
-        ttk.Button(wave_frame, text="+", command=lambda: self.adjust_wave_text(1)).pack(side=tk.LEFT)
-        ttk.Button(wave_frame, text="-", command=lambda: self.adjust_wave_text(-1)).pack(side=tk.LEFT)
-        row += 1
-        
-        # Scramble Rows Checkbox
-        ttk.Checkbutton(effect_frame, text="Scramble Rows", variable=self.scramble_rows,
-                        command=self.generate_ascii).grid(row=row, column=0, sticky="ew", pady=2)
-        row += 1
-        
-        # Random Character Flip
-        rand_flip_frame = ttk.Frame(effect_frame)
-        rand_flip_frame.grid(row=row, column=0, sticky="ew", pady=2)
-        ttk.Label(rand_flip_frame, text="Rand Char Flip (%):").pack(side=tk.LEFT)
-        flip_scale = ttk.Scale(rand_flip_frame, from_=0, to=100, orient=tk.HORIZONTAL,
-                            variable=self.rand_char_flip, command=lambda v: self.generate_ascii())
-        flip_scale.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
-        row += 1
-        
-        # Glitch Delay
-        glitch_delay_frame = ttk.Frame(effect_frame)
-        glitch_delay_frame.grid(row=row, column=0, sticky="ew", pady=2)
-        ttk.Label(glitch_delay_frame, text="Glitch Delay:").pack(side=tk.LEFT)
-        glitch_scale = ttk.Scale(glitch_delay_frame, from_=0, to=50, orient=tk.HORIZONTAL,
-                                variable=self.glitch_delay, command=lambda v: self.generate_ascii())
-        glitch_scale.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
-        row += 1
-        
-        # Brightness Pulse Checkbox
-        ttk.Checkbutton(effect_frame, text="Brightness Pulse", variable=self.brightness_pulse,
-                        command=self.generate_ascii).grid(row=row, column=0, sticky="ew", pady=2)
-        row += 1
-        
+        # Highlight Effect (matching first row padding)
+        ttk.Label(tab_b, text="HIGHLIGHT:", font=('OCR A Extended', 9))\
+            .grid(row=row_b, column=0, sticky="w", pady=(10,2), padx=10)
+        ttk.Scale(tab_b, from_=0, to=5, orient=tk.HORIZONTAL,
+                variable=self.highlight_effect, command=lambda v: self.generate_ascii())\
+            .grid(row=row_b, column=1, sticky="ew", pady=(10,2), padx=(0,10))
+        row_b += 1
+
         # Noise Ripple
-        noise_ripple_frame = ttk.Frame(effect_frame)
-        noise_ripple_frame.grid(row=row, column=0, sticky="ew", pady=2)
-        ttk.Label(noise_ripple_frame, text="Noise Ripple:").pack(side=tk.LEFT)
-        ripple_scale = ttk.Scale(noise_ripple_frame, from_=0, to=50, orient=tk.HORIZONTAL,
-                                variable=self.noise_ripple, command=lambda v: self.generate_ascii())
-        ripple_scale.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
-        row += 1
-        
-        # Highlight Effect
-        highlight_frame = ttk.Frame(effect_frame)
-        highlight_frame.grid(row=row, column=0, sticky="ew", pady=2)
-        ttk.Label(highlight_frame, text="Highlight Effect (%):").pack(side=tk.LEFT)
-        highlight_scale = ttk.Scale(highlight_frame, from_=0, to=5, orient=tk.HORIZONTAL,
-                                    variable=self.highlight_effect, command=lambda v: self.generate_ascii())
-        highlight_scale.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
-        row += 1
-        
-        # ChatGPT Tricks Checkbox
-        ttk.Checkbutton(effect_frame, text="ChatGPT Tricks", variable=self.chatgtp_tricks,
-                        command=self.start_chatgtp_tricks).grid(row=row, column=0, sticky="ew", pady=2)
-        row += 1
+        ttk.Label(tab_b, text="NOISE RIPPLE:", font=('OCR A Extended', 9))\
+            .grid(row=row_b, column=0, sticky="w", pady=2, padx=10)
+        ttk.Scale(tab_b, from_=0, to=50, orient=tk.HORIZONTAL,
+                variable=self.noise_ripple, command=lambda v: self.generate_ascii())\
+            .grid(row=row_b, column=1, sticky="ew", pady=2, padx=(0,10))
+        row_b += 1
 
+        # Glitch Delay
+        ttk.Label(tab_b, text="GLITCH DELAY:", font=('OCR A Extended', 9))\
+            .grid(row=row_b, column=0, sticky="w", pady=2, padx=10)
+        ttk.Scale(tab_b, from_=0, to=50, orient=tk.HORIZONTAL,
+                variable=self.glitch_delay, command=lambda v: self.generate_ascii())\
+            .grid(row=row_b, column=1, sticky="ew", pady=2, padx=(0,10))
+        row_b += 1
 
-    
+        # Wave Text
+        ttk.Label(tab_b, text="WAVE TEXT:", font=('OCR A Extended', 9))\
+            .grid(row=row_b, column=0, sticky="w", pady=2, padx=10)
+        wave_frame = ttk.Frame(tab_b)
+        wave_frame.grid(row=row_b, column=1, sticky="ew", pady=2, padx=(0,10))
+        ttk.Button(wave_frame, text="+", width=3, command=lambda: self.adjust_wave_text(1)).pack(side=tk.LEFT)
+        ttk.Button(wave_frame, text="-", width=3, command=lambda: self.adjust_wave_text(-1)).pack(side=tk.LEFT)
+        row_b += 1
+
+        # Checkboxes
+        add_checkbox(tab_b, "RANDOM FLIP", self.chatgtp_tricks, self.start_chatgtp_tricks, row_b)
+        row_b += 1
+        add_checkbox(tab_b, "SCRAMBLE ROWS", self.scramble_rows, self.generate_ascii, row_b)
+        row_b += 1
+        add_checkbox(tab_b, "BRIGHT PULSE", self.brightness_pulse, self.generate_ascii, row_b)
+        row_b += 1
+
     def adjust_wave_text(self, delta):
         new_value = self.wave_text.get() + delta
         if new_value < 0:
@@ -320,13 +340,38 @@ class ASCIGEN:
 
     def create_effect_scale(self, parent, label, from_, to, row, start_value=0):
         frame = ttk.Frame(parent)
-        frame.grid(row=row, column=0, sticky="ew", pady=2)
+        frame.grid(row=row, column=0, sticky="ew", pady=(5,5), padx=10)
         ttk.Label(frame, text=f"{label}:").pack(side=tk.LEFT)
         scale = ttk.Scale(frame, from_=from_, to=to, orient=tk.HORIZONTAL, length=200,
                           command=lambda v, t=label.lower(): self.update_effect(t, float(v)))
         scale.set(start_value)
         scale.pack(side=tk.RIGHT, expand=True, fill=tk.X, padx=5)
         return scale
+    
+    def update_color(self, preview_widget, color_var, command):
+        color = command()  # Call the color chooser
+        if color[1]:
+            color_var.set(color[1])
+            preview_widget.configure(background=color[1])
+            self.generate_ascii()
+
+    def choose_text_color(self):
+        return colorchooser.askcolor(initialcolor=self.text_color)
+
+    def choose_background_color(self):
+        return colorchooser.askcolor(initialcolor=self.bg_color)
+    
+    def update_character_set(self, event=None):
+        choice = self.char_set.get()
+        if choice == "Basic":
+            self.ascii_chars = ASCII_BASIC
+        elif choice == "Box":
+            self.ascii_chars = ASCII_BOX
+        elif choice == "CCC":
+            self.ascii_chars = ASCII_CCC
+            
+        self.generate_ascii()
+
 
     def adjust_font_size(self, event=None):
    
@@ -514,7 +559,7 @@ class ASCIGEN:
             pixels = np.array(img)
 
             # Use inverted mapping if selected
-            ascii_chars = ASCII_CHARS[::-1] if self.invert_ascii.get() else ASCII_CHARS
+            ascii_chars = self.ascii_chars[::-1] if self.invert_ascii.get() else self.ascii_chars            
             ascii_lines = []
             for row_pixels in pixels:
                 line = "".join([ascii_chars[min(int(p * (len(ascii_chars) - 1) / 255), len(ascii_chars) - 1)] for p in row_pixels])
@@ -579,6 +624,7 @@ class ASCIGEN:
 
         except Exception as e:
             self.show_error("RENDER ERROR", str(e))
+            
     def export_to_txt(self):
         ascii_art = self.ascii_text.get(1.0, tk.END)
         if not ascii_art.strip():
@@ -609,51 +655,45 @@ class ASCIGEN:
 
         if image_path:
             try:
-                # Get font info from the text widget
+                # Get ASCII art dimensions from Tkinter
+                lines = ascii_art.split("\n")
+                num_cols = len(lines[0]) if lines else 0
+                num_rows = len(lines)
+
+                # Get exact font metrics from Tkinter
                 current_font = tkFont.Font(font=self.ascii_text.cget("font"))
-                font_name = current_font.actual()["family"]
-                font_size = current_font.actual()["size"]
-                
-                # Calculate metrics using Tkinter's font system
                 char_width = current_font.measure("A")
                 line_height = current_font.metrics("linespace")
-                
-                # Split ASCII art into lines
-                lines = ascii_art.split("\n")
-                
-                # Calculate image dimensions
-                max_width = max(current_font.measure(line) for line in lines) if lines else 0
-                img_height = line_height * len(lines)
 
-                # Export with right background color 
-                color_tuple = ImageColor.getrgb(self.bg_color)
-                
-                # Create image with proper dimensions
-                img = Image.new("RGB", (max_width, img_height), color=color_tuple)
+                # Create fixed-size character grid
+                img_width = num_cols * char_width
+                img_height = num_rows * line_height
+
+                # Get colors
+                bg_color = ImageColor.getrgb(self.bg_color)
+                text_color = ImageColor.getrgb(self.text_color)
+
+                # Create image and draw context
+                img = Image.new("RGB", (img_width, img_height), color=bg_color)
                 draw = ImageDraw.Draw(img)
-                
-                # Try to load matching font for Pillow
+
+                # Load EXACT monospace font used in Tkinter
                 try:
-                    font = ImageFont.truetype(font_name.lower() + ".ttf", font_size)
+                    font = ImageFont.truetype("Courier.ttf", size=current_font.actual()["size"])
                 except IOError:
-                    # Fallback to default font with Tkinter metrics
                     font = ImageFont.load_default()
-                    # Use Tkinter's measurements for default font
-                    char_width = current_font.measure("A")
-                    line_height = current_font.metrics("linespace")
 
-                # Draw text using calculated metrics
-                for i, line in enumerate(lines):
-                    draw.text(
-                        (0, i * line_height),
-                        line,
-                        font=font,
-                        fill=self.text_color
-                    )
+                # Draw character grid
+                for y, line in enumerate(lines):
+                    for x, char in enumerate(line):
+                        # Calculate exact position matching Tkinter layout
+                        x_pos = x * char_width
+                        y_pos = y * line_height
+                        draw.text((x_pos, y_pos), char, font=font, fill=text_color)
 
-                img.save(image_path)
+                img.save(image_path, "JPEG", quality=95)
                 messagebox.showinfo("EXPORT COMPLETE", f"IMAGE SAVED TO:\n{image_path}")
-                
+
             except Exception as e:
                 self.show_error("EXPORT ERROR", str(e))
 
@@ -662,7 +702,7 @@ class ASCIGEN:
         if not ascii_art.strip():
             self.show_warning("NO DATA", "Please generate ASCII art before exporting.")
             return
-            
+                
         gif_path = filedialog.asksaveasfilename(
             defaultextension=".gif",
             filetypes=[("GIF Files", "*.gif"), ("All Files", "*.*")]
@@ -670,77 +710,56 @@ class ASCIGEN:
         
         if gif_path:
             try:
-                # Get font metrics from Tkinter
+                # Get ASCII art dimensions
+                lines = ascii_art.split("\n")
+                num_cols = len(lines[0]) if lines else 0
+                num_rows = len(lines)
+
+                # Get Tkinter metrics
                 current_font = tkFont.Font(font=self.ascii_text.cget("font"))
-                font_name = current_font.actual()["family"]
-                font_size = current_font.actual()["size"]
-                
-                # Calculate dimensions using Tkinter's metrics
                 char_width = current_font.measure("A")
                 line_height = current_font.metrics("linespace")
-                lines = ascii_art.split("\n")
-                
-                # Calculate image size
-                max_width = max(current_font.measure(line) for line in lines) if lines else 0
-                img_height = line_height * len(lines)
 
-                # Export with right background color 
-                color_tuple = ImageColor.getrgb(self.bg_color)
-                
                 # Create base image
-                base_img = Image.new("RGB", (max_width, img_height), color=color_tuple)
-                draw = ImageDraw.Draw(base_img)
+                bg_color = ImageColor.getrgb(self.bg_color)
+                text_color = ImageColor.getrgb(self.text_color)
+                img = Image.new("RGB", (num_cols*char_width, num_rows*line_height), bg_color)
                 
-                # Try to load matching font
+                # Load font
                 try:
-                    font = ImageFont.truetype(font_name.lower() + ".ttf", font_size)
+                    font = ImageFont.truetype("Courier.ttf", current_font.actual()["size"])
                 except IOError:
                     font = ImageFont.load_default()
-                    # Use approximate measurements if default font
-                    char_width = 8
-                    line_height = 16
 
-                # Create animated frames with glitch effect
+                # Create animated frames
                 frames = []
-                for frame_num in range(10):
-                    img = base_img.copy()
-                    draw = ImageDraw.Draw(img)
+                for frame in range(10):
+                    draw = ImageDraw.Draw(img.copy())
                     
-                    # Add frame variation
-                    for j, line in enumerate(lines):
-                        x_offset = int(5 * math.sin(frame_num + j/2))  # Wave effect
-                        y_pos = j * line_height
-                        
-                        # Add random glitch offset every 3 frames
-                        if frame_num % 3 == 0 and random.random() > 0.7:
-                            x_offset += random.randint(-3, 3)
+                    # Add glitch effects
+                    for y, line in enumerate(lines):
+                        for x, char in enumerate(line):
+                            offset = int(5 * math.sin(frame + y/2))
+                            if random.random() < 0.1:  # 10% glitch chance
+                                offset += random.randint(-3, 3)
                             
-                        draw.text(
-                            (x_offset, y_pos),
-                            line,
-                            font=font,
-                            fill=self.text_color
-                        )
-                    
-                    # Add subtle brightness variation
-                    if self.brightness_pulse.get():
-                        enhancer = ImageEnhance.Brightness(img)
-                        img = enhancer.enhance(1 + 0.1 * math.sin(frame_num/2))
+                            x_pos = x * char_width + offset
+                            y_pos = y * line_height
+                            draw.text((x_pos, y_pos), char, font=font, fill=text_color)
                     
                     frames.append(img)
 
-                # Save animated GIF with optimization
+                # Save GIF
                 frames[0].save(
                     gif_path,
                     save_all=True,
                     append_images=frames[1:],
                     duration=100,
                     loop=0,
-                    optimize=True,
-                    quality=80
+                    optimize=True
                 )
                 messagebox.showinfo("EXPORT COMPLETE", f"GIF SAVED TO:\n{gif_path}")
-                
+                    
             except Exception as e:
                 self.show_error("EXPORT ERROR", str(e))
 
@@ -749,79 +768,53 @@ class ASCIGEN:
         if not ascii_art.strip():
             self.show_warning("NO DATA", "Please generate ASCII art before exporting.")
             return
-            
-        png_path = filedialog.asksaveasfilename(
+
+        image_path = filedialog.asksaveasfilename(
             defaultextension=".png",
             filetypes=[("PNG Files", "*.png"), ("All Files", "*.*")]
         )
-        
-        if png_path:
+
+        if image_path:
             try:
-                # Get font metrics from Tkinter
+                # Get ASCII art dimensions from Tkinter
+                lines = ascii_art.split("\n")
+                num_cols = len(lines[0]) if lines else 0
+                num_rows = len(lines)
+
+                # Get exact font metrics from Tkinter
                 current_font = tkFont.Font(font=self.ascii_text.cget("font"))
-                font_name = current_font.actual()["family"]
-                font_size = current_font.actual()["size"]
-                
-                # Calculate dimensions using Tkinter's metrics
                 char_width = current_font.measure("A")
                 line_height = current_font.metrics("linespace")
-                lines = ascii_art.split("\n")
-                
-                # Calculate image size with padding
-                max_width = max(current_font.measure(line) for line in lines) if lines else 0
-                img_height = line_height * len(lines)
-                
-                # Add 10% padding
-                padding = int(max_width * 0.1)
-                img_width = max_width + 2 * padding
-                img_height += 2 * padding
-                
-                # Export with right background color 
-                color_tuple = ImageColor.getrgb(self.bg_color)
-                
-                # Create image with padding
-                img = Image.new("RGB", (max_width, img_height), color=color_tuple)
+
+                # Create fixed-size character grid
+                img_width = num_cols * char_width
+                img_height = num_rows * line_height
+
+                # Get colors
+                bg_color = ImageColor.getrgb(self.bg_color)
+                text_color = ImageColor.getrgb(self.text_color)
+
+                # Create image and draw context
+                img = Image.new("RGB", (img_width, img_height), color=bg_color)
                 draw = ImageDraw.Draw(img)
-                
-                # Try to load matching font
+
+                # Load EXACT monospace font used in Tkinter
                 try:
-                    font = ImageFont.truetype(font_name.lower() + ".ttf", font_size)
+                    font = ImageFont.truetype("Courier.ttf", size=current_font.actual()["size"])
                 except IOError:
                     font = ImageFont.load_default()
-                    # Use approximate measurements if default font
-                    char_width = 8
-                    line_height = 16
 
-                # Draw text with padding
-                for j, line in enumerate(lines):
-                    draw.text(
-                        (padding, padding + j * line_height),
-                        line,
-                        font=font,
-                        fill=self.text_color
-                    )
-                
-                # Add optional effects
-                if self.highlight_effect.get() > 0:
-                    # Add subtle highlight effect
-                    highlight_img = img.copy()
-                    highlight_draw = ImageDraw.Draw(highlight_img)
-                    for j, line in enumerate(lines):
-                        if random.random() < (self.highlight_effect.get()/100):
-                            highlight_draw.rectangle(
-                                [
-                                    (padding, padding + j * line_height),
-                                    (padding + max_width, padding + (j+1) * line_height)
-                                ],
-                                fill=self.highlight_color
-                            )
-                    # Blend highlight layer
-                    img = Image.blend(img, highlight_img, alpha=0.3)
-                
-                # Save with maximum quality
-                img.save(png_path, "PNG", compress_level=1)
-                messagebox.showinfo("EXPORT COMPLETE", f"PNG SAVED TO:\n{png_path}")
-                
+                # Draw character grid
+                for y, line in enumerate(lines):
+                    for x, char in enumerate(line):
+                        # Calculate exact position matching Tkinter layout
+                        x_pos = x * char_width
+                        y_pos = y * line_height
+                        draw.text((x_pos, y_pos), char, font=font, fill=text_color)
+
+                img.save(image_path, "PNG", compress_level=1)
+                messagebox.showinfo("EXPORT COMPLETE", f"IMAGE SAVED TO:\n{image_path}")
+
             except Exception as e:
                 self.show_error("EXPORT ERROR", str(e))
 
@@ -830,7 +823,7 @@ class ASCIGEN:
         about.title("About")
         
         # Set fixed window size
-        window_width = 900
+        window_width = 700
         window_height = 800
         
         # Get screen dimensions
@@ -850,65 +843,88 @@ class ASCIGEN:
         
         # Content with ASCII art header
         content = [
-            "▓█████▄  ██▀███   ▒█████   ▒█████   ██▓███  ",
-            "▒██▀ ██▌▓██ ▒ ██▒▒██▒  ██▒▒██▒  ██▒▓██░  ██▒",
-            "░██   █▌▓██ ░▄█ ▒▒██░  ██▒▒██░  ██▒▓██░ ██▓▒",
-            "░▓█▄   ▌▒██▀▀█▄  ▒██   ██░▒██   ██░▒██▄█▓▒ ▒",
-            "░▒████▓ ░██▓ ▒██▒░ ████▓▒░░ ████▓▒░▒██▒ ░  ░",
-            " ▒▒▓  ▒ ░ ▒▓ ░▒▓░░ ▒░▒░▒░ ░ ▒░▒░▒░ ▒▓▒░ ░  ░",
-            " ░ ▒  ▒   ░▒ ░ ▒░  ░ ▒ ▒░   ░ ▒ ▒░ ░▒ ░     ",
-            " ░ ░  ░   ░░   ░ ░ ░ ░ ▒  ░ ░ ░ ▒  ░░       ",
-            "   ░       ░         ░ ░      ░ ░           ",
             "",
-            "ASCII IMAGE MANIPULATOR GENERATOR ALPHA",
-            "DEVELOPED UNDER NUCLEAR LICENSE 0X7E3",
+            "ASCII IMAGE MANIPULATOR GENERATOR v0.3 (?)",
             "",
+            "DEVELOPED AS A PROJECT TO START LEARNING ",
+            "PYTHON, DESIGN A CUSTOM PROGRAM IN ORDER TO",
+            "CREATE SPECIFIC CUSTOM EFFECTS AND EXPLORE",
+            "THE BOUNDARIES, LIMITATION AND DRAWBACKS OF",
+            "USING ARTIFICIAL INTELIGENCE AS A LEARNING ",
+            "TOOL",
             "",
-            "" ,
-            "-" ,
-            "-" ,
+            "IF THIS FALLS IN YOUR HANDS FEEL FREE TO",
+            "USE, DISTRIBUTE ETC ONLY IF THERES NO",
+            "INTENTION TO PROFIT FROM IT",
+            "ALL RIGHTS REVERSED /// COPYLEFT",
             "",
             "",
-            "COPYLEFT"
+            "",
+            "-------------.-------------------------.---------------",
+            "..]MMW...WMMw...MMM#MMM#MMW...MMM#6#MMMg....MM#ZMM......",
+            "..;M@B,.,G@@+..<@@WQ@@@Q#@N-..#@@QQQ#@#;...@@#X-Q@@N....",
+            "..,G@F...O@@_...W@w-Q@F,a@F,..N@K,,.S@M:..;#@O,.,H@Q-...",
+            "..,B@F...a@M;...#F-.B@F..@F...N@E...A@M:..;#@Z...K@Q-...",
+            "..,B@F...a@@_...A...B@F...P...N@E...O@#:..;#@Z...K@Q-...",
+            "..,B@F.._Q@F:..,...,B@F...,,.-N@E..;Q@H~..;#@Z...K@Q-...",
+            "..,G@H._G@E~.......,B@F......-N@P;;G@S~...;#@Z...K@Q-...",
+            "..:W@MNN@@o,......._M@F......_M@WQQ@@w,.-.;#@O..,F@Q-...",
+            "..>@@@@BB@@G>.......@@W;......@@@@QQ@@F>..;@@F..;M@N~...",
+            "..>@@@f--o@@p.......@@W;......@@@f--o@@g..;@@H..:M@N~...",
+            "..:W@G....@@P......_M@F.......M@K...=@@[..;#@Z..,H@Q-...",
+            "..,G@F....@@]......,B@F.......N@E....@@[..;#@Z...K@Q-...",
+            "..,B@F....I@]......,B@F......-N@E....@@[..;#@Z...K@Q-...",
+            "..+@@E,...P@A.......@@A,......@@A,..{@@o..;gN@---@K>~...",
+            "..-F@a....P@{......-G@}......~F@w...:M@?....;E@@@a,.....",
+            "...<BO.....Ov.......GNw.......FNa....+Mw.....-FZz.......",
+            "-------------.-------------------------.-------------",
         ]
 
-        # Create scrolling container
+        # Create a canvas for scrolling
         canvas = tk.Canvas(about, bg='#000000', highlightthickness=0)
         scrollbar = ttk.Scrollbar(about, orient=tk.VERTICAL, command=canvas.yview)
-        frame = ttk.Frame(canvas)
-        
+        frame = ttk.Frame(canvas, style='y2k.TFrame')
+
         # Configure grid
         canvas.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
         about.grid_columnconfigure(0, weight=1)
         about.grid_rowconfigure(0, weight=1)
-        
-        # Add content labels
+
+        # Add content labels to the frame
         for idx, line in enumerate(content):
-            lbl = ttk.Label(frame, 
-                        text=line,
-                        font=('OCR A Extended', 10),
-                        foreground='#00ff00',
-                        background='#000000')
-            lbl.grid(row=idx, column=0, sticky="w", padx=10, pady=2)
-        
+            lbl = ttk.Label(frame,
+                            text=line,
+                            font=('Courier New', 12),  # Use monospace font
+                            foreground='#00ff00',
+                            background='#000000',
+                            anchor="center")  # Center-align text
+            lbl.grid(row=idx, column=0, sticky="ew", padx=10, pady=2)
+
         # Configure scrolling
-        canvas.create_window((0,0), window=frame, anchor="nw")
+        canvas.create_window((0, 0), window=frame, anchor="nw")
         frame.bind("<Configure>", lambda e: canvas.configure(
             scrollregion=canvas.bbox("all")))
         canvas.configure(yscrollcommand=scrollbar.set)
-        
+
+        # Center the frame content
+        canvas.update_idletasks()
+        frame_width = frame.winfo_reqwidth()
+        canvas_width = canvas.winfo_width()
+        if frame_width < canvas_width:
+            canvas.create_window((canvas_width // 2 - frame_width // 2, 0),
+                                window=frame, anchor="nw")
+
         # Add close button
-        btn = ttk.Button(about, 
-                    text="ACKNOWLEDGE", 
-                    command=about.destroy,
-                    style='y2k.TButton')
+        btn = ttk.Button(about,
+                        text="ACKNOWLEDGE",
+                        command=about.destroy,
+                        style='y2k.TButton')
         btn.grid(row=1, column=0, columnspan=2, pady=10)
-        
+
         # Maintain style consistency
         about.config(cursor=CURSOR)
         about.bind("<Escape>", lambda e: about.destroy())
-
     def show_error(self, title, message):
         messagebox.showerror(title, message, parent=self.root)
 
